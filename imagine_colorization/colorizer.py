@@ -48,20 +48,39 @@ class ColorizationModel:
             return np.concatenate([gray_features, reference_features], axis=-1)
         return gray_features
 
-    def decode(self, fused_features: np.ndarray, output_shape: Tuple[int, int]) -> np.ndarray:
-        """Decode fused features back to an RGB image."""
+    def decode(
+        self,
+        fused_features: np.ndarray,
+        reference_features: np.ndarray,
+        mask: np.ndarray,
+        output_shape: Tuple[int, int],
+    ) -> np.ndarray:
+        """Decode fused features back to an RGB image with reference guidance."""
 
-        # Placeholder: tile the luminance and blend simple chroma hints.
         height, width = output_shape
         luminance = fused_features[..., 0]
-        rgb = np.repeat(luminance[..., None], 3, axis=-1)
-        return to_uint8(rgb)
+        ref_rgb = reference_features
+
+        # Ensure mask has shape (H, W, 1) for broadcasting.
+        if mask.ndim == 2:
+            mask = mask[..., None]
+        mask = mask.astype("float32")
+
+        # Blend reference colors with luminance preservation.
+        luminance_rgb = np.repeat(luminance[..., None], 3, axis=-1)
+        guided = ref_rgb * mask + luminance_rgb * (1.0 - mask)
+        return to_uint8(guided)
 
     def __call__(self, sample: ColorizationSample, composition: ReferenceComposition) -> ColorizationOutputs:
         gray_features = self.encode_grayscale(sample.grayscale)
         reference_features = self.encode_reference(composition)
         fused = self.fuse(gray_features, reference_features)
-        colorized = self.decode(fused, output_shape=sample.grayscale.shape[:2])
+        colorized = self.decode(
+            fused,
+            reference_features=reference_features,
+            mask=composition.mask,
+            output_shape=sample.grayscale.shape[:2],
+        )
         return ColorizationOutputs(
             colorized=colorized,
             low_level_features=gray_features,

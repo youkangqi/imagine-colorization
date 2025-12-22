@@ -9,9 +9,11 @@ frameworks so that concrete implementations can be slotted in later.
 from imagine_colorization.pipeline import ImagineColorizationPipeline
 from imagine_colorization.config import (
     ColorizationConfig,
+    ControlNetConfig,
     ImaginationConfig,
     PipelineConfig,
     RefinementConfig,
+    Sam2Config,
 )
 from imagine_colorization.types import (
     ColorizationSample,
@@ -22,9 +24,11 @@ from imagine_colorization.types import (
 __all__ = [
     "ImagineColorizationPipeline",
     "ColorizationConfig",
+    "ControlNetConfig",
     "ImaginationConfig",
     "PipelineConfig",
     "RefinementConfig",
+    "Sam2Config",
     "ColorizationSample",
     "ReferenceCandidate",
     "ReferenceComposition",

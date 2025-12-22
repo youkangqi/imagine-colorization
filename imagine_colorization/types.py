@@ -1,6 +1,6 @@
 """Shared type definitions for the Imagine-Colorization pipeline."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
 import numpy as np
@@ -14,7 +14,8 @@ class ColorizationSample:
     caption: Optional[str] = None
     depth_map: Optional[np.ndarray] = None
     segmentation: Optional[np.ndarray] = None
-    metadata: Dict[str, Any] = None
+    edges: Optional[np.ndarray] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -25,6 +26,8 @@ class ReferenceCandidate:
     caption: str
     latent: Optional[Any] = None
     score: Optional[float] = None
+    control_image: Optional[np.ndarray] = None
+    seed: Optional[int] = None
 
 
 @dataclass
@@ -34,4 +37,3 @@ class ReferenceComposition:
     image: np.ndarray
     mask: np.ndarray
     provenance: Dict[str, int]
-

@@ -4,3 +4,6 @@
 [submodule "sam2"]
 	path = sam2
 	url = https://github.com/facebookresearch/sam2.git
+[submodule "BrushNet"]
+	path = BrushNet
+	url = https://github.com/TencentARC/BrushNet.git

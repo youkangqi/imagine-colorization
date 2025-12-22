@@ -12,6 +12,7 @@ from typing import Iterable, List
 
 import numpy as np
 
+from imagine_colorization.adapters.controlnet_adapter import ControlNetAdapter
 from imagine_colorization.config import ImaginationConfig
 from imagine_colorization.types import ColorizationSample, ReferenceCandidate
 
@@ -29,6 +30,23 @@ class ImaginationModule:
 
     def __init__(self, config: ImaginationConfig) -> None:
         self.config = config
+        self.controlnet = ControlNetAdapter(config.controlnet)
+
+    def _build_prompt(self, caption: str) -> str:
+        try:
+            return self.config.prompt_template.format(caption=caption)
+        except KeyError as exc:
+            raise ValueError("prompt_template must include '{caption}'.") from exc
+
+    def _resolve_negative_prompt(self) -> str:
+        if self.config.negative_prompt:
+            return self.config.negative_prompt
+        return self.config.controlnet.negative_prompt
+
+    def _prepare_control_image(self, sample: ColorizationSample) -> np.ndarray:
+        if sample.edges is not None:
+            return self.controlnet.prepare_control_image(sample.edges)
+        return self.controlnet.build_control_image(sample.grayscale)
 
     def describe_scene(self, sample: ColorizationSample) -> str:
         """Derive a text caption for the grayscale image.
@@ -42,29 +60,40 @@ class ImaginationModule:
             return sample.caption
         return "A detailed photograph matching the grayscale input."
 
-    def generate_candidates(self, caption: str, sample: ColorizationSample) -> Iterable[np.ndarray]:
-        """Yield raw colorful images from a generative model.
+    def generate_candidates(
+        self, caption: str, sample: ColorizationSample
+    ) -> Iterable[ReferenceCandidate]:
+        """Generate reference candidates using SD1.5 + ControlNet."""
 
-        Substitute the body with a Stable Diffusion sampler conditioned on the
-        caption and structural priors (depth/edges) extracted from the grayscale
-        input.
-        """
+        prompt = self._build_prompt(caption)
+        negative_prompt = self._resolve_negative_prompt()
+        control_image = self._prepare_control_image(sample)
+        images = self.controlnet.generate(
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            control_image=control_image,
+            num_samples=self.config.num_candidates,
+            seed=self.config.seed,
+        )
+        for image in images:
+            yield ReferenceCandidate(
+                image=image,
+                caption=caption,
+                control_image=control_image,
+                seed=self.config.seed,
+            )
 
-        for _ in range(self.config.num_candidates):
-            # Placeholder: return a tiled grayscale image as a colorful dummy.
-            yield np.repeat(sample.grayscale[..., None], 3, axis=-1)
-
-    def score_candidate(self, candidate: np.ndarray, caption: str, sample: ColorizationSample) -> float:
+    def score_candidate(self, candidate: ReferenceCandidate, sample: ColorizationSample) -> float:
         """Compute a semantic-structural score for ranking candidates."""
 
         # Placeholder: downstream refinement will handle structure; here we use
         # a dummy uniform score.
+        _ = sample
         return 1.0
 
     def __call__(self, sample: ColorizationSample) -> ImaginationOutputs:
         caption = self.describe_scene(sample)
-        candidates: List[ReferenceCandidate] = []
-        for image in self.generate_candidates(caption, sample):
-            score = self.score_candidate(image, caption, sample)
-            candidates.append(ReferenceCandidate(image=image, caption=caption, score=score))
+        candidates: List[ReferenceCandidate] = list(self.generate_candidates(caption, sample))
+        for candidate in candidates:
+            candidate.score = self.score_candidate(candidate, sample)
         return ImaginationOutputs(caption=caption, candidates=candidates)

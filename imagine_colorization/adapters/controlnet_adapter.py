@@ -31,11 +31,34 @@ class ControlNetAdapter:
         if repo_path not in sys.path:
             sys.path.insert(0, repo_path)
 
+    def _resolve_path(self, path: str) -> str:
+        if os.path.isabs(path):
+            return path
+        if os.path.exists(path):
+            return os.path.abspath(path)
+        repo_path = os.path.abspath(self.config.repo_path)
+        return os.path.abspath(os.path.join(repo_path, path))
+
     def _build_detector(self) -> None:
         if self.config.control_type == "canny":
             from annotator.canny import CannyDetector
 
             self._detector = CannyDetector()
+            return
+        if self.config.control_type == "hed":
+            from annotator.hed import HEDdetector
+
+            self._detector = HEDdetector()
+            return
+        if self.config.control_type == "depth":
+            from annotator.midas import MidasDetector
+
+            self._detector = MidasDetector()
+            return
+        if self.config.control_type == "seg":
+            from annotator.uniformer import UniformerDetector
+
+            self._detector = UniformerDetector()
             return
         raise NotImplementedError(f"Unsupported control_type: {self.config.control_type}")
 
@@ -54,9 +77,11 @@ class ControlNetAdapter:
         except Exception as exc:  # pragma: no cover - depends on external libs
             raise RuntimeError("Failed to import ControlNet dependencies.") from exc
 
-        model = create_model(self.config.sd_config_path).cpu()
+        sd_config_path = self._resolve_path(self.config.sd_config_path)
+        controlnet_weights_path = self._resolve_path(self.config.controlnet_weights_path)
+        model = create_model(sd_config_path).cpu()
         model.load_state_dict(
-            load_state_dict(self.config.controlnet_weights_path, location=self.config.device)
+            load_state_dict(controlnet_weights_path, location=self.config.device)
         )
         model = model.to(self.config.device)
 
@@ -69,16 +94,30 @@ class ControlNetAdapter:
         self._build_detector()
         self._loaded = True
 
-    def build_control_image(self, image: np.ndarray) -> np.ndarray:
-        """Build a ControlNet condition image from a grayscale or RGB input."""
+    def prepare_control_image(self, image: np.ndarray) -> np.ndarray:
+        """Normalize and resize an image to the ControlNet control format."""
 
         self.load()
         img = self._hwc3(image)
-        img = self._resize_image(img, self.config.image_resolution)
+        return self._resize_image(img, self.config.image_resolution)
+
+    def build_control_image(self, image: np.ndarray) -> np.ndarray:
+        """Build a ControlNet condition image from a grayscale or RGB input."""
+
+        img = self.prepare_control_image(image)
         if self.config.control_type == "canny":
             detected = self._detector(
                 img, self.config.canny_low_threshold, self.config.canny_high_threshold
             )
+            return self._hwc3(detected)
+        if self.config.control_type == "hed":
+            detected = self._detector(img)
+            return self._hwc3(detected)
+        if self.config.control_type == "depth":
+            detected, _ = self._detector(img)
+            return self._hwc3(detected)
+        if self.config.control_type == "seg":
+            detected = self._detector(img)
             return self._hwc3(detected)
         raise NotImplementedError(f"Unsupported control_type: {self.config.control_type}")
 

@@ -1,3 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
 python scripts/generate_candidates.py \
   --image graypic.jpg \
   --controlnet-weights ControlNet/models/control_sd15_canny.pth \
@@ -7,7 +10,9 @@ python scripts/generate_candidates.py \
   --batch-size 2 \
   --save-memory \
   --image-resolution 384 \
-  --steps 10 \
+  --steps 20 \
+  --negative-prompt "low quality, blurry, artifacts" \
+  --avoid-grayscale \
   --prompt-template "{caption}" \
   --blip2-model /homeB/youkangqi/.cache/huggingface/hub/models--Salesforce--blip2-opt-2.7b/snapshots/59a1ef6c1e5117b3f65523d1c6066825bcf315e3 \
   --blip2-device cuda:1 \

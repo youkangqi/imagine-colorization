@@ -63,7 +63,8 @@ class ImaginationModule:
         if self.captioner is not None:
             caption = self.captioner.generate(sample.grayscale)
             self.captioner.unload()
-            return caption
+            if caption and caption.strip():
+                return caption
         return "A detailed photograph matching the grayscale input."
 
     def generate_candidates(

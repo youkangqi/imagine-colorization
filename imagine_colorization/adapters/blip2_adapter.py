@@ -68,15 +68,30 @@ class Blip2Captioner:
     def generate(self, image: np.ndarray) -> str:
         self.load()
         pil_image = self._to_pil(image)
-        prompt = self.config.prompt or "Describe the image."
-        inputs = self._processor(images=pil_image, text=prompt, return_tensors="pt")
+        prompts = []
+        if self.config.prompt:
+            prompts.append(self.config.prompt)
+        prompts.extend(
+            [
+                "Question: Describe the image without mentioning colors. Answer:",
+                "Describe the image.",
+            ]
+        )
+        for prompt in prompts:
+            caption = self._generate_with_prompt(pil_image, prompt)
+            if caption.strip():
+                return caption.strip()
+        return ""
+
+    def _generate_with_prompt(self, image, prompt: str) -> str:
+        inputs = self._processor(images=image, text=prompt, return_tensors="pt")
         inputs = {k: v.to(self.config.device) for k, v in inputs.items()}
         with self._torch.no_grad():
             output = self._model.generate(
                 **inputs, max_new_tokens=self.config.max_new_tokens
             )
         captions = self._processor.batch_decode(output, skip_special_tokens=True)
-        return captions[0].strip()
+        return captions[0]
 
     def unload(self) -> None:
         """Release model weights to free GPU memory."""

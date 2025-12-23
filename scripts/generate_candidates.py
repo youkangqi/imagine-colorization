@@ -29,6 +29,14 @@ def _ensure_path_exists(path: str) -> str:
 
 
 def _build_config(args: argparse.Namespace) -> ImaginationConfig:
+    negative_prompt = args.negative_prompt
+    if args.avoid_grayscale:
+        extra = "monochrome, grayscale, black and white, desaturated"
+        if negative_prompt:
+            negative_prompt = f"{negative_prompt}, {extra}"
+        else:
+            negative_prompt = extra
+
     controlnet_kwargs = {
         "control_type": args.control_type,
         "sd_config_path": args.sd_config,
@@ -41,8 +49,8 @@ def _build_config(args: argparse.Namespace) -> ImaginationConfig:
         "guess_mode": args.guess_mode,
         "save_memory": args.save_memory,
     }
-    if args.negative_prompt is not None:
-        controlnet_kwargs["negative_prompt"] = args.negative_prompt
+    if negative_prompt is not None:
+        controlnet_kwargs["negative_prompt"] = negative_prompt
     controlnet = ControlNetConfig(**controlnet_kwargs)
 
     imagination_kwargs = {
@@ -51,8 +59,8 @@ def _build_config(args: argparse.Namespace) -> ImaginationConfig:
         "prompt_template": args.prompt_template,
         "controlnet": controlnet,
     }
-    if args.negative_prompt is not None:
-        imagination_kwargs["negative_prompt"] = args.negative_prompt
+    if negative_prompt is not None:
+        imagination_kwargs["negative_prompt"] = negative_prompt
     if args.blip2_model is not None:
         imagination_kwargs["blip2"] = Blip2Config(
             model_name=args.blip2_model,
@@ -124,6 +132,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser.add_argument("--strength", type=float, default=1.0)
     parser.add_argument("--guess-mode", action="store_true")
     parser.add_argument("--negative-prompt", default=None)
+    parser.add_argument("--avoid-grayscale", action="store_true", help="追加负面提示词避免灰度输出")
     parser.add_argument("--prompt-template", default="{caption}")
     parser.add_argument("--save-memory", action="store_true", help="启用低显存模式")
     parser.add_argument("--blip2-model", default=None, help="BLIP-2 模型名称")
@@ -143,6 +152,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     sample = ColorizationSample(grayscale=grayscale, caption=args.prompt)
     if sample.caption is None:
         sample.caption = module.describe_scene(sample)
+    print(f"BLIP-2 caption: {sample.caption}")
 
     caption, candidates = _generate_in_batches(
         module,

@@ -10,3 +10,6 @@ to run imagination module in semantic_sam environment:
 upgrade transformers >= 4.30  "pip install -U "transformers>=4.30.0"
 pip install "pytorch_lightning==1.8.6"
 pip install open_clip_torch==2.0.2
+
+additional model:
+prepare ./openai/clip-vit-large-patch14

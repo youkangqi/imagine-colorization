@@ -95,20 +95,30 @@ class ImaginationModule:
             if filtered:
                 prompt = f"{prompt}. Without: {filtered}"
         control_image = self._prepare_control_image(sample)
-        images = self.controlnet.generate(
-            prompt=prompt,
-            negative_prompt=negative_prompt,
-            control_image=control_image,
-            num_samples=self.config.num_candidates,
-            seed=self.config.seed,
-        )
-        for image in images:
-            yield ReferenceCandidate(
-                image=image,
-                caption=caption,
+        remaining = max(1, self.config.num_candidates)
+        batch_size = max(1, self.config.batch_size)
+        batch_idx = 0
+        while remaining > 0:
+            current = min(batch_size, remaining)
+            batch_seed = None
+            if self.config.seed is not None:
+                batch_seed = self.config.seed + batch_idx
+            images = self.controlnet.generate(
+                prompt=prompt,
+                negative_prompt=negative_prompt,
                 control_image=control_image,
-                seed=self.config.seed,
+                num_samples=current,
+                seed=batch_seed,
             )
+            for image in images:
+                yield ReferenceCandidate(
+                    image=image,
+                    caption=caption,
+                    control_image=control_image,
+                    seed=batch_seed,
+                )
+            remaining -= current
+            batch_idx += 1
 
     def score_candidate(self, candidate: ReferenceCandidate, sample: ColorizationSample) -> float:
         """Compute a semantic-structural score for ranking candidates."""

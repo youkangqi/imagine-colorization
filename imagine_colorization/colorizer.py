@@ -99,6 +99,50 @@ class ColorizationModel:
             blurred = blurred / blurred.max()
         return np.clip(blurred, 0.0, 1.0)
 
+    def _quantize_segment_colors(
+        self, ab: np.ndarray, mask: np.ndarray, max_colors: int
+    ) -> np.ndarray:
+        try:
+            import cv2
+        except Exception:
+            return ab
+        coords = mask.astype(bool)
+        if coords.sum() == 0:
+            return ab
+        pixels = ab[coords].reshape(-1, 2)
+        if pixels.shape[0] <= max_colors:
+            return ab
+        max_samples = min(20000, pixels.shape[0])
+        if pixels.shape[0] > max_samples:
+            idx = np.random.choice(pixels.shape[0], max_samples, replace=False)
+            sample = pixels[idx]
+        else:
+            sample = pixels
+        k = max(1, min(max_colors, sample.shape[0]))
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 0.5)
+        _, labels, centers = cv2.kmeans(sample.astype("float32"), k, None, criteria, 3, cv2.KMEANS_PP_CENTERS)
+        centers = centers.astype("float32")
+        diffs = pixels[:, None, :] - centers[None, :, :]
+        nearest = np.argmin((diffs * diffs).sum(axis=-1), axis=1)
+        ab_out = ab.copy()
+        ab_out[coords] = centers[nearest]
+        return ab_out
+
+    def _apply_hint_limit(
+        self, hint_lab: np.ndarray, composition: ReferenceComposition
+    ) -> np.ndarray:
+        max_colors = int(self.config.hint_max_per_segment)
+        if max_colors <= 0:
+            return hint_lab
+        segments = composition.segments
+        if not segments:
+            return hint_lab
+        ab = hint_lab[..., 1:].astype("float32")
+        for segment in segments:
+            ab = self._quantize_segment_colors(ab, segment, max_colors)
+        hint_lab[..., 1:] = ab
+        return hint_lab
+
     def _generate_hint_lab(
         self, sample: ColorizationSample, composition: ReferenceComposition
     ) -> np.ndarray:
@@ -135,6 +179,7 @@ class ColorizationModel:
             hint_lab[..., 1:] = (
                 (1.0 - weight) * coarse_lab[..., 1:] + weight * ref_lab[..., 1:]
             )
+        hint_lab = self._apply_hint_limit(hint_lab, composition)
         return hint_lab
 
     def _propagate_hints(

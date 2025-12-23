@@ -224,6 +224,7 @@ class ReferenceRefinementModule:
             image=composed.astype("uint8"),
             mask=composed_mask,
             provenance=provenance,
+            segments=masks,
         )
 
     def __call__(self, candidates: List[ReferenceCandidate], sample: ColorizationSample) -> RefinementOutputs:

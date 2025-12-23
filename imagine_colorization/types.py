@@ -1,7 +1,7 @@
 """Shared type definitions for the Imagine-Colorization pipeline."""
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
@@ -37,3 +37,4 @@ class ReferenceComposition:
     image: np.ndarray
     mask: np.ndarray
     provenance: Dict[str, int]
+    segments: Optional[List[np.ndarray]] = None

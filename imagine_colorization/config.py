@@ -159,6 +159,7 @@ class ImaginationConfig:
     negative_prompt: Optional[str] = None
     append_negative_prompt: bool = False
     blip2: Optional[Blip2Config] = None
+    batch_size: int = 1
 
 
 @dataclass
@@ -215,6 +216,7 @@ class ColorizationConfig:
         hint_coarse_size: Short edge size for coarse hint generation.
         hint_refine_strength: Blend ratio for refined hints inside the mask.
         hint_refine_blur: Blur radius for soft hint refinement.
+        hint_max_per_segment: Max hint colors per segment (NH in the paper).
         propagation_radius: Guided filter radius for hint propagation.
         propagation_eps: Guided filter epsilon for hint propagation.
         propagation_sigma_color: Bilateral sigmaColor fallback for hint propagation.
@@ -233,6 +235,7 @@ class ColorizationConfig:
     hint_coarse_size: int = 64
     hint_refine_strength: float = 0.7
     hint_refine_blur: float = 9.0
+    hint_max_per_segment: int = 10
     propagation_radius: int = 8
     propagation_eps: float = 1e-3
     propagation_sigma_color: float = 12.0

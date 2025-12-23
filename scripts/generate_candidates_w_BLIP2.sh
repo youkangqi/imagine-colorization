@@ -1,0 +1,14 @@
+python scripts/generate_candidates.py \
+  --image graypic.jpg \
+  --controlnet-weights ControlNet/models/control_sd15_canny.pth \
+  --controlnet-device cuda:0 \
+  --outdir outputs/candidates \
+  --num-candidates 4 \
+  --batch-size 2 \
+  --save-memory \
+  --image-resolution 384 \
+  --steps 10 \
+  --prompt-template "{caption}" \
+  --blip2-model /homeB/youkangqi/.cache/huggingface/hub/models--Salesforce--blip2-opt-2.7b/snapshots/59a1ef6c1e5117b3f65523d1c6066825bcf315e3 \
+  --blip2-device cuda:1 \
+  --blip2-dtype float16

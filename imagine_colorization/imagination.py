@@ -12,6 +12,7 @@ from typing import Iterable, List
 
 import numpy as np
 
+from imagine_colorization.adapters.blip2_adapter import Blip2Captioner
 from imagine_colorization.adapters.controlnet_adapter import ControlNetAdapter
 from imagine_colorization.config import ImaginationConfig
 from imagine_colorization.types import ColorizationSample, ReferenceCandidate
@@ -31,6 +32,7 @@ class ImaginationModule:
     def __init__(self, config: ImaginationConfig) -> None:
         self.config = config
         self.controlnet = ControlNetAdapter(config.controlnet)
+        self.captioner = Blip2Captioner(config.blip2) if config.blip2 else None
 
     def _build_prompt(self, caption: str) -> str:
         try:
@@ -58,6 +60,10 @@ class ImaginationModule:
 
         if sample.caption:
             return sample.caption
+        if self.captioner is not None:
+            caption = self.captioner.generate(sample.grayscale)
+            self.captioner.unload()
+            return caption
         return "A detailed photograph matching the grayscale input."
 
     def generate_candidates(

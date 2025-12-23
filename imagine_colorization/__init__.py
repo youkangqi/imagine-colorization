@@ -8,6 +8,7 @@ frameworks so that concrete implementations can be slotted in later.
 
 from imagine_colorization.pipeline import ImagineColorizationPipeline
 from imagine_colorization.config import (
+    Blip2Config,
     ColorizationConfig,
     ControlNetConfig,
     ImaginationConfig,
@@ -23,6 +24,7 @@ from imagine_colorization.types import (
 
 __all__ = [
     "ImagineColorizationPipeline",
+    "Blip2Config",
     "ColorizationConfig",
     "ControlNetConfig",
     "ImaginationConfig",

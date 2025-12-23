@@ -80,9 +80,8 @@ class ControlNetAdapter:
         sd_config_path = self._resolve_path(self.config.sd_config_path)
         controlnet_weights_path = self._resolve_path(self.config.controlnet_weights_path)
         model = create_model(sd_config_path).cpu()
-        model.load_state_dict(
-            load_state_dict(controlnet_weights_path, location=self.config.device)
-        )
+        state_dict = load_state_dict(controlnet_weights_path, location=self.config.device)
+        model.load_state_dict(state_dict, strict=False)
         model = model.to(self.config.device)
 
         self._model = model
@@ -151,7 +150,7 @@ class ControlNetAdapter:
         guidance_scale = guidance_scale or self.config.guidance_scale
         strength = strength or self.config.strength
         guess_mode = self.config.guess_mode if guess_mode is None else guess_mode
-        negative_prompt = negative_prompt or self.config.negative_prompt
+        negative_prompt = negative_prompt or self.config.negative_prompt or ""
         prompt_prefix = self.config.prompt_prefix
         if prompt_prefix:
             prompt = f"{prompt}, {prompt_prefix}"

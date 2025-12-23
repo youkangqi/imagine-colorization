@@ -76,6 +76,27 @@ class Sam2Config:
 
 
 @dataclass
+class Blip2Config:
+    """Settings for BLIP-2 captioning.
+
+    Attributes:
+        model_name: Hugging Face model id.
+        device: Torch device string.
+        dtype: Torch dtype name (float16/float32/bfloat16).
+        max_new_tokens: Maximum tokens to generate.
+        prompt: Optional text prompt for the captioner.
+        local_files_only: Whether to force loading from local files only.
+    """
+
+    model_name: str = "Salesforce/blip2-flan-t5-xl"
+    device: str = "cuda"
+    dtype: str = "float16"
+    max_new_tokens: int = 30
+    prompt: Optional[str] = None
+    local_files_only: bool = True
+
+
+@dataclass
 class ImaginationConfig:
     """Settings for the imagination module.
 
@@ -92,6 +113,7 @@ class ImaginationConfig:
         controlnet: ControlNet inference configuration.
         prompt_template: Format string applied to the caption.
         negative_prompt: Optional override for the negative prompt.
+        blip2: Optional BLIP-2 configuration for automatic captioning.
     """
 
     captioner_name: str = "blip-base"
@@ -102,6 +124,7 @@ class ImaginationConfig:
     controlnet: ControlNetConfig = field(default_factory=ControlNetConfig)
     prompt_template: str = "{caption}"
     negative_prompt: Optional[str] = None
+    blip2: Optional[Blip2Config] = None
 
 
 @dataclass

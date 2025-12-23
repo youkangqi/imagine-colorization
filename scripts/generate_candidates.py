@@ -49,6 +49,8 @@ def _build_config(args: argparse.Namespace) -> ImaginationConfig:
         "guess_mode": args.guess_mode,
         "save_memory": args.save_memory,
     }
+    if args.prompt_prefix is not None:
+        controlnet_kwargs["prompt_prefix"] = args.prompt_prefix
     if negative_prompt is not None:
         controlnet_kwargs["negative_prompt"] = negative_prompt
     controlnet = ControlNetConfig(**controlnet_kwargs)
@@ -58,6 +60,7 @@ def _build_config(args: argparse.Namespace) -> ImaginationConfig:
         "seed": args.seed,
         "prompt_template": args.prompt_template,
         "controlnet": controlnet,
+        "append_negative_prompt": args.append_negative_to_prompt,
     }
     if negative_prompt is not None:
         imagination_kwargs["negative_prompt"] = negative_prompt
@@ -134,6 +137,12 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser.add_argument("--negative-prompt", default=None)
     parser.add_argument("--avoid-grayscale", action="store_true", help="追加负面提示词避免灰度输出")
     parser.add_argument("--prompt-template", default="{caption}")
+    parser.add_argument("--prompt-prefix", default=None, help="正向 prompt 后缀")
+    parser.add_argument(
+        "--append-negative-to-prompt",
+        action="store_true",
+        help="把负面提示词附加到正向 prompt",
+    )
     parser.add_argument("--save-memory", action="store_true", help="启用低显存模式")
     parser.add_argument("--blip2-model", default=None, help="BLIP-2 模型名称")
     parser.add_argument("--blip2-device", default="cuda", help="BLIP-2 设备")

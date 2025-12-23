@@ -45,6 +45,8 @@ class ImagineColorizationPipeline:
 
     def __call__(self, sample: ColorizationSample) -> PipelineOutputs:
         imagination_outputs = self.imagination(sample)
+        if sample.caption is None:
+            sample.caption = imagination_outputs.caption
         refinement_outputs = self.refinement(imagination_outputs.candidates, sample)
         colorization_outputs = self.colorizer(sample, refinement_outputs.composition)
 

@@ -46,6 +46,15 @@ def _collect_candidates(pattern: str) -> List[str]:
     return paths
 
 
+def _save_segmentation_masks(masks: List[np.ndarray], outdir: str) -> None:
+    if not masks:
+        return
+    os.makedirs(outdir, exist_ok=True)
+    for idx, mask in enumerate(masks):
+        path = os.path.join(outdir, f"segment_{idx:03d}.png")
+        cv2.imwrite(path, (mask.astype("uint8") * 255))
+
+
 def _build_config(args: argparse.Namespace) -> RefinementConfig:
     semantic_cfg = SemanticSamConfig(
         repo_path=args.semantic_sam_repo,
@@ -69,6 +78,7 @@ def _build_config(args: argparse.Namespace) -> RefinementConfig:
         max_segments=args.max_segments,
         segment_min_area=args.min_segment_area,
         distance_metric=args.distance_metric,
+        mask_blur=args.mask_blur,
     )
 
 
@@ -94,12 +104,14 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser.add_argument("--max-segments", type=int, default=5, help="最大使用 segment 数")
     parser.add_argument("--min-segment-area", type=int, default=256, help="segment 最小像素面积")
     parser.add_argument("--distance-metric", default="cosine", choices=["cosine", "l1", "l2"])
+    parser.add_argument("--mask-blur", type=float, default=5.0, help="分割融合的 mask 模糊半径")
     parser.add_argument("--dino-ckpt", default="model_Seg/dinov2_vitl14_pretrain.pth")
     parser.add_argument("--dino-repo", default="dinov2")
     parser.add_argument("--dino-arch", default="dinov2_vitl14")
     parser.add_argument("--dino-input-size", type=int, default=518)
     parser.add_argument("--dino-device", default="cuda")
     parser.add_argument("--dino-dtype", default="float16")
+    parser.add_argument("--segments-outdir", default=None, help="保存分割结果目录")
     args = parser.parse_args(argv)
 
     gray = _load_grayscale(args.gray)
@@ -115,6 +127,9 @@ def main(argv: Optional[List[str]] = None) -> None:
     refined = outputs.composition.image
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     cv2.imwrite(args.out, cv2.cvtColor(refined, cv2.COLOR_RGB2BGR))
+    if args.segments_outdir:
+        masks = module.compute_masks(sample)
+        _save_segmentation_masks(masks, args.segments_outdir)
     print(f"refined reference saved to {args.out}")
 
 

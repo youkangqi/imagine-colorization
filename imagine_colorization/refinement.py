@@ -59,6 +59,35 @@ class ReferenceRefinementModule:
         resized = resize(mask.astype("float32"), size)
         return resized > 0.5
 
+    def _blur_mask(self, mask: np.ndarray) -> np.ndarray:
+        if self.config.mask_blur <= 0:
+            return mask.astype("float32")
+        try:
+            import cv2
+        except Exception:
+            # Fall back to a sharp mask if cv2 isn't available.
+            return mask.astype("float32")
+        sigma = float(self.config.mask_blur)
+        mask_u8 = mask.astype("uint8")
+        dist_in = cv2.distanceTransform(mask_u8, cv2.DIST_L2, 3)
+        dist_out = cv2.distanceTransform(1 - mask_u8, cv2.DIST_L2, 3)
+        signed = dist_in - dist_out
+        scale = signed / max(sigma, 1e-6)
+        scale = np.clip(scale, -50.0, 50.0)
+        weight = 1.0 / (1.0 + np.exp(-scale))
+        max_radius = sigma * 3.0
+        if max_radius > 0:
+            weight = np.where(signed > max_radius, 1.0, weight)
+            weight = np.where(signed < -max_radius, 0.0, weight)
+        return weight.astype("float32")
+
+    def _background_weight(self, mask_union: np.ndarray) -> np.ndarray:
+        if mask_union.sum() == 0:
+            return np.ones_like(mask_union, dtype="float32")
+        if mask_union.all():
+            return np.zeros_like(mask_union, dtype="float32")
+        return self._blur_mask(~mask_union)
+
     def _labels_to_masks(self, labels: np.ndarray) -> List[np.ndarray]:
         masks: List[np.ndarray] = []
         for label in np.unique(labels):
@@ -164,16 +193,31 @@ class ReferenceRefinementModule:
 
         composed = np.zeros_like(aligned_images[0], dtype="float32")
         mask_union = np.zeros(aligned_images[0].shape[:2], dtype=bool)
+        weight_sum = np.zeros(aligned_images[0].shape[:2], dtype="float32")
         provenance: Dict[str, int] = {}
         for idx, mask in enumerate(masks):
             best_idx, _ = self._select_best_candidate(base_image, aligned_images, mask)
-            composed[mask] = aligned_images[best_idx][mask]
-            mask_union |= mask
+            soft_mask = self._blur_mask(mask)
+            if soft_mask.ndim == 2:
+                soft_mask = soft_mask[..., None]
+            composed += aligned_images[best_idx].astype("float32") * soft_mask
+            weight_sum += soft_mask[..., 0]
+            mask_union |= mask.astype(bool)
             provenance[f"segment_{idx}"] = best_idx
 
         if not mask_union.all():
-            fallback = aligned_images[0]
-            composed[~mask_union] = fallback[~mask_union]
+            background_mask = ~mask_union
+            background_idx, _ = self._select_best_candidate(base_image, aligned_images, background_mask)
+            background = self._background_weight(mask_union)
+            if background.ndim == 2:
+                background = background[..., None]
+            fallback = aligned_images[background_idx].astype("float32")
+            composed += fallback * background
+            weight_sum += background[..., 0]
+            provenance["background"] = background_idx
+
+        weight_sum = np.clip(weight_sum, 1e-6, None)
+        composed = composed / weight_sum[..., None]
 
         composed_mask = mask_union.astype("float32")[..., None]
         return ReferenceComposition(

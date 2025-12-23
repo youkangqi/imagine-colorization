@@ -29,6 +29,13 @@ class ImaginationOutputs:
 class ImaginationModule:
     """Generates colorful reference candidates guided by text prompts."""
 
+    _NEGATIVE_APPEND_EXCLUDES = {
+        "monochrome",
+        "grayscale",
+        "black and white",
+        "desaturated",
+    }
+
     def __init__(self, config: ImaginationConfig) -> None:
         self.config = config
         self.controlnet = ControlNetAdapter(config.controlnet)
@@ -44,6 +51,15 @@ class ImaginationModule:
         if self.config.negative_prompt:
             return self.config.negative_prompt
         return self.config.controlnet.negative_prompt
+
+    def _negative_for_prompt(self, negative_prompt: str) -> str:
+        tokens = [token.strip() for token in negative_prompt.split(",")]
+        filtered = [
+            token
+            for token in tokens
+            if token and token.lower() not in self._NEGATIVE_APPEND_EXCLUDES
+        ]
+        return ", ".join(filtered)
 
     def _prepare_control_image(self, sample: ColorizationSample) -> np.ndarray:
         if sample.edges is not None:
@@ -72,8 +88,12 @@ class ImaginationModule:
     ) -> Iterable[ReferenceCandidate]:
         """Generate reference candidates using SD1.5 + ControlNet."""
 
-        prompt = self._build_prompt(caption)
         negative_prompt = self._resolve_negative_prompt()
+        prompt = self._build_prompt(caption)
+        if self.config.append_negative_prompt and negative_prompt:
+            filtered = self._negative_for_prompt(negative_prompt)
+            if filtered:
+                prompt = f"{prompt}. Without: {filtered}"
         control_image = self._prepare_control_image(sample)
         images = self.controlnet.generate(
             prompt=prompt,

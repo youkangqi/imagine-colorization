@@ -2,7 +2,7 @@
 set -euo pipefail
 
 python scripts/generate_candidates.py \
-  --image graypic.jpg \
+  --image image.png \
   --controlnet-weights ControlNet/models/control_sd15_canny.pth \
   --controlnet-device cuda:0 \
   --outdir outputs/candidates \
@@ -11,8 +11,9 @@ python scripts/generate_candidates.py \
   --save-memory \
   --image-resolution 384 \
   --steps 20 \
-  --negative-prompt "low quality, blurry, artifacts" \
+  --negative-prompt "low quality, blurry, artifacts, oil painting, painterly, overly saturated, cartoon, illustration" \
   --avoid-grayscale \
+  --prompt-prefix "realistic, photographic, natural lighting, translucent colors, soft saturation, true-to-life, high detail" \
   --prompt-template "{caption}" \
   --blip2-model /homeB/youkangqi/.cache/huggingface/hub/models--Salesforce--blip2-opt-2.7b/snapshots/59a1ef6c1e5117b3f65523d1c6066825bcf315e3 \
   --blip2-device cuda:1 \

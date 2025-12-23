@@ -44,7 +44,7 @@ class ControlNetConfig:
         "longbody, lowres, bad anatomy, bad hands, missing fingers, extra digit, "
         "fewer digits, cropped, worst quality, low quality"
     )
-    prompt_prefix: str = "best quality, extremely detailed"
+    prompt_prefix: str = "best quality, extremely detailed, realistic"
     canny_low_threshold: int = 100
     canny_high_threshold: int = 200
     save_memory: bool = False
@@ -146,6 +146,7 @@ class ImaginationConfig:
         prompt_template: Format string applied to the caption.
         negative_prompt: Optional override for the negative prompt.
         blip2: Optional BLIP-2 configuration for automatic captioning.
+        append_negative_prompt: Whether to append negative_prompt to the prompt.
     """
 
     captioner_name: str = "blip-base"
@@ -156,6 +157,7 @@ class ImaginationConfig:
     controlnet: ControlNetConfig = field(default_factory=ControlNetConfig)
     prompt_template: str = "{caption}"
     negative_prompt: Optional[str] = None
+    append_negative_prompt: bool = False
     blip2: Optional[Blip2Config] = None
 
 
@@ -209,6 +211,15 @@ class ColorizationConfig:
             decoding to preserve object boundaries.
         controlnet: ControlNet inference configuration.
         color_prompt_template: Format string for color prompt injection.
+        control_source: Use "grayscale" or "reference" to build the control image.
+        hint_coarse_size: Short edge size for coarse hint generation.
+        hint_refine_strength: Blend ratio for refined hints inside the mask.
+        hint_refine_blur: Blur radius for soft hint refinement.
+        propagation_radius: Guided filter radius for hint propagation.
+        propagation_eps: Guided filter epsilon for hint propagation.
+        propagation_sigma_color: Bilateral sigmaColor fallback for hint propagation.
+        propagation_sigma_space: Bilateral sigmaSpace fallback for hint propagation.
+        propagation_strength: Blend ratio between hint colors and propagated colors.
     """
 
     mode: str = "sd15_controlnet"
@@ -218,6 +229,15 @@ class ColorizationConfig:
     use_segmentation_prior: bool = True
     controlnet: ControlNetConfig = field(default_factory=ControlNetConfig)
     color_prompt_template: str = "{caption}, colorized"
+    control_source: str = "grayscale"
+    hint_coarse_size: int = 64
+    hint_refine_strength: float = 0.7
+    hint_refine_blur: float = 9.0
+    propagation_radius: int = 8
+    propagation_eps: float = 1e-3
+    propagation_sigma_color: float = 12.0
+    propagation_sigma_space: float = 12.0
+    propagation_strength: float = 1.0
 
 
 @dataclass

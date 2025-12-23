@@ -76,6 +76,38 @@ class Sam2Config:
 
 
 @dataclass
+class SemanticSamConfig:
+    """Settings for Semantic-SAM segmentation."""
+
+    repo_path: str = "Semantic-SAM"
+    config_path: str = "Semantic-SAM/configs/semantic_sam_only_sa-1b_swinT.yaml"
+    checkpoint_path: str = "model_Seg/swint_only_sam_many2many.pth"
+    model_type: Optional[str] = "T"
+    device: str = "cuda"
+    points_per_side: int = 32
+    points_per_batch: int = 200
+    pred_iou_thresh: float = 0.88
+    stability_score_thresh: float = 0.92
+    min_mask_region_area: int = 10
+    levels: List[int] = field(default_factory=lambda: [1, 2, 3, 4, 5, 6])
+    resize_short_edge: Optional[int] = None
+
+
+@dataclass
+class DinoV2Config:
+    """Settings for DINOv2 feature extraction."""
+
+    model_name: str = "facebook/dinov2-base"
+    checkpoint_path: Optional[str] = "model_Seg/dinov2_vitl14_pretrain.pth"
+    repo_path: Optional[str] = None
+    arch: str = "dinov2_vitl14"
+    input_size: int = 518
+    device: str = "cuda"
+    dtype: str = "float16"
+    local_files_only: bool = True
+
+
+@dataclass
 class Blip2Config:
     """Settings for BLIP-2 captioning.
 
@@ -143,6 +175,10 @@ class RefinementConfig:
         segment_min_area: Minimum pixel area for segments to keep.
         sam2: SAM2 configuration for automatic mask generation.
         rank_weights: Weights for ranking terms (e.g., edge/clip).
+        semantic_sam: Semantic-SAM configuration for semantic-aware segments.
+        dino: DINOv2 configuration for feature matching.
+        distance_metric: Distance metric in feature space.
+        overlap_thresh: Overlap threshold for suppressing duplicate segments.
     """
 
     mask_blur: float = 1.5
@@ -153,6 +189,10 @@ class RefinementConfig:
     segment_min_area: int = 256
     sam2: Sam2Config = field(default_factory=Sam2Config)
     rank_weights: Dict[str, float] = field(default_factory=lambda: {"edge": 0.5, "clip": 0.5})
+    semantic_sam: SemanticSamConfig = field(default_factory=SemanticSamConfig)
+    dino: DinoV2Config = field(default_factory=DinoV2Config)
+    distance_metric: str = "cosine"
+    overlap_thresh: float = 0.9
 
 
 @dataclass

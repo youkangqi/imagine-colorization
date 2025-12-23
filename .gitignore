@@ -3,3 +3,7 @@
 ControlNet/
 openai/
 outputs/
+
+*.pdf
+*.pth
+*.whl

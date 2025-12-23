@@ -10,3 +10,6 @@
 [submodule "Semantic-SAM"]
 	path = Semantic-SAM
 	url = https://github.com/UX-Decoder/Semantic-SAM.git
+[submodule "dinov2"]
+	path = dinov2
+	url = https://github.com/facebookresearch/dinov2.git

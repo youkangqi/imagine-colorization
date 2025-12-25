@@ -8,6 +8,7 @@ prior, and keep track of candidates for downstream refinement.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Iterable, List
 
 import numpy as np
@@ -35,6 +36,14 @@ class ImaginationModule:
         "black and white",
         "desaturated",
     }
+    _CAPTION_FILTERS = [
+        r"\bblack and white\b",
+        r"\bblack-and-white\b",
+        r"\bmonochrome\b",
+        r"\bgrayscale\b",
+        r"\bdesaturated\b",
+        r"\bcolorless\b",
+    ]
 
     def __init__(self, config: ImaginationConfig) -> None:
         self.config = config
@@ -66,6 +75,16 @@ class ImaginationModule:
             return self.controlnet.prepare_control_image(sample.edges)
         return self.controlnet.build_control_image(sample.grayscale)
 
+    def _sanitize_caption(self, caption: str) -> str:
+        cleaned = caption.strip()
+        if not cleaned:
+            return cleaned
+        for pattern in self._CAPTION_FILTERS:
+            cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\s+", " ", cleaned)
+        cleaned = re.sub(r"\s+([,.;:])", r"\1", cleaned)
+        return cleaned.strip()
+
     def describe_scene(self, sample: ColorizationSample) -> str:
         """Derive a text caption for the grayscale image.
 
@@ -75,12 +94,12 @@ class ImaginationModule:
         """
 
         if sample.caption:
-            return sample.caption
+            return self._sanitize_caption(sample.caption)
         if self.captioner is not None:
             caption = self.captioner.generate(sample.grayscale)
             self.captioner.unload()
             if caption and caption.strip():
-                return caption
+                return self._sanitize_caption(caption)
         return "A detailed photograph matching the grayscale input."
 
     def generate_candidates(

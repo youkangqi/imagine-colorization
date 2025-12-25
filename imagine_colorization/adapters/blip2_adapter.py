@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from typing import Optional
 
 import numpy as np
@@ -39,6 +40,24 @@ class Blip2Captioner:
         if image.shape[-1] == 1:
             image = np.repeat(image, 3, axis=-1)
         return self._image_cls.fromarray(image.astype("uint8"), mode="RGB")
+
+    def _sanitize_caption(self, caption: str) -> str:
+        cleaned = caption.strip()
+        if not cleaned:
+            return cleaned
+        patterns = [
+            r"\\bblack and white\\b",
+            r"\\bblack-and-white\\b",
+            r"\\bmonochrome\\b",
+            r"\\bgrayscale\\b",
+            r"\\bdesaturated\\b",
+            r"\\bcolorless\\b",
+        ]
+        for pattern in patterns:
+            cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\\s+", " ", cleaned)
+        cleaned = re.sub(r"\\s+([,.;:])", r"\\1", cleaned)
+        return cleaned.strip()
 
     def load(self) -> None:
         if self._loaded:
@@ -79,8 +98,9 @@ class Blip2Captioner:
         )
         for prompt in prompts:
             caption = self._generate_with_prompt(pil_image, prompt)
-            if caption.strip():
-                return caption.strip()
+            caption = self._sanitize_caption(caption)
+            if caption:
+                return caption
         return ""
 
     def _generate_with_prompt(self, image, prompt: str) -> str:

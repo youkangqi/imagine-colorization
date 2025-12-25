@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PYTHON_BIN="/homeB/youkangqi/miniconda3/envs/sa_sam/bin/python"
-GRAY_IMAGE="graypic.jpg"
+GRAY_IMAGE="data/gray_apple.jpeg"
 OUTDIR="outputs/pipeline"
 
 BLIP2_MODEL="/homeB/youkangqi/.cache/huggingface/hub/models--Salesforce--blip2-opt-2.7b/snapshots/59a1ef6c1e5117b3f65523d1c6066825bcf315e3"
 CONTROLNET_WEIGHTS="ControlNet/models/control_sd15_canny.pth"
 
-${PYTHON_BIN} scripts/run_pipeline.py \
+python scripts/run_pipeline.py \
   --gray "${GRAY_IMAGE}" \
   --outdir "${OUTDIR}" \
   --num-candidates 8 \

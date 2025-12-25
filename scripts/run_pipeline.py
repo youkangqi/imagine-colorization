@@ -24,7 +24,39 @@ from imagine_colorization.config import (
 from imagine_colorization.pipeline import ImagineColorizationPipeline
 from imagine_colorization.types import ColorizationSample
 
-DEFAULT_NEGATIVE_PROMPT = ControlNetConfig().negative_prompt
+DEFAULT_NEGATIVE_PROMPT = (
+    "low quality, blurry, artifacts, oil painting, painterly, overly saturated, cartoon, illustration"
+)
+AVOID_GRAYSCALE = "monochrome, grayscale, black and white, desaturated"
+DEFAULT_PROMPT_PREFIX = (
+    "realistic, photographic, natural lighting, translucent colors, soft saturation, true-to-life, high detail"
+)
+
+
+def _merge_negative_prompt(base: Optional[str]) -> str:
+    if not base:
+        return AVOID_GRAYSCALE
+    tokens = [token.strip() for token in base.split(",") if token.strip()]
+    existing = {token.lower() for token in tokens}
+    for token in AVOID_GRAYSCALE.split(","):
+        cleaned = token.strip()
+        if cleaned and cleaned.lower() not in existing:
+            tokens.append(cleaned)
+    return ", ".join(tokens)
+
+
+def _augment_blip2_prompt(prompt: Optional[str]) -> Optional[str]:
+    if not prompt:
+        return prompt
+    lower = prompt.lower()
+    if "avoid mentioning" in lower or "monochrome" in lower or "grayscale" in lower:
+        return prompt
+    if "Answer:" in prompt:
+        head, tail = prompt.split("Answer:", 1)
+        head = head.rstrip()
+        tail = tail.strip()
+        return f"{head} Avoid mentioning: {AVOID_GRAYSCALE}. Answer: {tail}".strip()
+    return f"{prompt.strip()} Avoid mentioning: {AVOID_GRAYSCALE}."
 
 def _load_grayscale(path: str) -> np.ndarray:
     image = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
@@ -75,7 +107,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser.add_argument("--num-candidates", type=int, default=4)
     parser.add_argument("--batch-size", type=int, default=1, help="每次采样的候选数")
     parser.add_argument("--seed", type=int, default=None)
-    parser.add_argument("--prompt-prefix", default="best quality, extremely detailed, realistic")
+    parser.add_argument("--prompt-prefix", default=DEFAULT_PROMPT_PREFIX)
     parser.add_argument("--save-memory", action="store_true")
 
     parser.add_argument("--controlnet-weights", required=True)
@@ -152,12 +184,18 @@ def main(argv: Optional[List[str]] = None) -> None:
 
     args = parser.parse_args(argv)
 
+    args.negative_prompt = _merge_negative_prompt(args.negative_prompt)
+    if args.color_negative_prompt is not None:
+        args.color_negative_prompt = _merge_negative_prompt(args.color_negative_prompt)
+    args.blip2_prompt = _augment_blip2_prompt(args.blip2_prompt)
+
     if args.color_mode == "sd15_controlnet" and not (
         args.color_controlnet_weights or args.controlnet_weights
     ):
         raise ValueError("color_mode=sd15_controlnet 需要 controlnet 权重")
 
-    outdir = args.outdir
+    image_name = os.path.splitext(os.path.basename(args.gray))[0]
+    outdir = os.path.join(args.outdir, image_name)
     candidates_dir = os.path.join(outdir, "candidates")
     segments_dir = os.path.join(outdir, "segments")
 
@@ -176,6 +214,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         prompt_prefix=args.prompt_prefix,
         save_memory=args.save_memory,
     )
+    # print(f"BLIP2 prompt:{args.blip2_prompt}")
     imagination_cfg = ImaginationConfig(
         num_candidates=args.num_candidates,
         batch_size=args.batch_size,
@@ -270,6 +309,7 @@ def main(argv: Optional[List[str]] = None) -> None:
 
     os.makedirs(outdir, exist_ok=True)
     caption_path = os.path.join(outdir, "caption.txt")
+    source_path = os.path.join(outdir, "source.png")
     control_image_path = os.path.join(outdir, "control_image.png")
     refined_path = os.path.join(outdir, "refined.png")
     refined_mask_path = os.path.join(outdir, "refined_mask.png")
@@ -277,6 +317,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     hint_map_path = os.path.join(outdir, "hint_map.png")
     metadata_path = os.path.join(outdir, "metadata.json")
 
+    _save_image(source_path, sample.grayscale)
     _save_text(caption_path, outputs.imagination.caption)
 
     candidate_paths: List[str] = []
@@ -315,6 +356,7 @@ def main(argv: Optional[List[str]] = None) -> None:
             "candidates": candidate_metadata,
             "outputs": {
                 "caption": caption_path,
+                "source": source_path,
                 "control_image": control_image_path,
                 "candidates": candidate_paths,
                 "refined": refined_path,
